@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logrotate-config
+data:
+  logrotate.conf: |    
+    /vault/audit/vault.log {
+        copytruncate
+        size 1M
+        missingok
+        nocompress
+
+        postrotate
+            pkill -HUP vault
+        endscript
+    }

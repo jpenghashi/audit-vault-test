@@ -1,0 +1,68 @@
+global:
+  enabled: true
+  tlsDisable: true
+
+injector:
+  enabled: false
+  metrics: 
+   enabled: true
+
+server:
+  # ignore anti-affinity for now
+  enabled: true
+  readinessProbe:
+    enabled: false
+  affinity: ''
+  image:
+    repository: hashicorp/vault
+    tag: 1.16.1
+  shareProcessNamespace: true
+  # Add the lograte config from a config map
+  volumes:
+    - name: logrotate-config
+      configMap:
+        name: logrotate-config
+  # And finally the container
+  extraContainers:
+    - name: auditlog-rotator
+      image: <Image URI>
+      imagePullPolicy: Always
+      env:
+      - name: CRONTAB
+        value: "*/1 * * * *"
+      volumeMounts:
+      - mountPath: /etc/logrotate.conf
+        name: logrotate-config
+        subPath: logrotate.conf
+        readOnly: true
+      - mountPath: /vault/audit
+        name: audit
+  auditStorage:
+    enabled: true
+    size: 10Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
+  ha:
+    enabled: true
+    replicas: 1
+    raft:
+      enabled: true
+      config: |
+        ui = true
+
+        service_registration "kubernetes" {}
+        log_level = "trace"
+        log_requests_level = "trace"
+        raw_storage_endpoint = "true"
+
+        listener "tcp" {
+          address = ":8200"
+          cluster_address = ":8201"
+          tls_disable = 1
+          telemetry {
+            unauthenticated_metrics_access = true
+          }
+        }
+        storage "raft" {
+          path = "/vault/data"
+        }
